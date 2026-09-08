@@ -1,0 +1,102 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred. Please try again.",
+    "continue": "Continue",
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "save": "Save",
+    "edit": "Edit",
+    "logout": "Logout",
+    "disclaimer": "⚠️ This is not medical advice. Please consult a doctor for personalized guidance."
+  },
+  "splash": {
+    "title": "Aslee",
+    "subtitle": "Verify your medicines instantly",
+    "getStarted": "Get Started"
+  },
+  "login": {
+    "title": "Enter your phone number",
+    "sendOtp": "Send OTP",
+    "invalidPhone": "Please enter a valid 10-digit phone number"
+  },
+  "otp": {
+    "title": "Verify OTP",
+    "subtext": "We sent a 6-digit code to",
+    "resend": "Resend OTP",
+    "resendIn": "Resend in {{seconds}}s",
+    "invalidOtp": "Invalid OTP. Please try again."
+  },
+  "profileSetup": {
+    "title": "Set up your profile",
+    "name": "Full Name",
+    "ageBracket": "Age Bracket",
+    "chronicConditions": "Chronic Conditions",
+    "language": "Preferred Language",
+    "skip": "Skip for now"
+  },
+  "consent": {
+    "title": "Your data, your control",
+    "point1": "We collect your scan history and profile info.",
+    "point2": "This helps us show you relevant information and improve the service.",
+    "point3": "Only you and our automated systems can see it (aggregated anonymously).",
+    "point4": "You can contact support anytime to delete your data.",
+    "agree": "I Agree",
+    "readPolicy": "Read full policy"
+  },
+  "home": {
+    "greeting": "Hello, {{name}}!",
+    "welcome": "Welcome!",
+    "scanButton": "Scan Medicine",
+    "recentScans": "Recent Scans",
+    "noScans": "No scans yet. Scan your first medicine!"
+  },
+  "scan": {
+    "title": "Scan Medicine",
+    "uploadPhoto": "Upload a photo instead",
+    "selectMedicine": "Select Medicine (Demo)",
+    "selectBatch": "Select Batch",
+    "scanNow": "Scan Now",
+    "cameraError": "Could not access camera"
+  },
+  "loadingSequence": {
+    "step1": "Reading batch info...",
+    "step2": "Checking registry...",
+    "step3": "Comparing prices..."
+  },
+  "results": {
+    "title": "Scan Results",
+    "genuine": "Genuine",
+    "inconclusive": "Inconclusive",
+    "flagged": "Flagged for Review",
+    "trustScore": "Trust Score",
+    "expiry": "Expiry Date",
+    "expired": "Expired",
+    "expiresSoon": "Expires Soon",
+    "priceComparison": "Price Comparison",
+    "mrp": "MRP",
+    "ceilingPrice": "Ceiling Price",
+    "overcharged": "Overcharged!",
+    "savings": "Potential Savings",
+    "genericAlternatives": "Generic Alternatives",
+    "scanAnother": "Scan Another Medicine",
+    "recallAlert": "Recall Alert",
+    "critical": "Critical",
+    "warning": "Warning"
+  },
+  "community": {
+    "comingSoon": "Community — Coming Soon"
+  },
+  "profile": {
+    "title": "Profile",
+    "pastScans": "Past Scans",
+    "editProfile": "Edit Profile",
+    "logoutConfirm": "Are you sure you want to logout?"
+  },
+  "bottomNav": {
+    "home": "Home",
+    "scan": "Scan",
+    "community": "Community",
+    "profile": "Profile"
+  }
+}
