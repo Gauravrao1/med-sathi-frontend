@@ -11,7 +11,8 @@ export const OtpVerify: React.FC = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const phone = location.state?.phone || '';
-  const demoOtp = location.state?.demoOtp || '';
+  const [demoOtp, setDemoOtp] = useState(location.state?.demoOtp || '');
+  const [challenge, setChallenge] = useState(location.state?.challenge || '');
   
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
@@ -60,7 +61,7 @@ export const OtpVerify: React.FC = () => {
         setLoading(true);
         setError('');
         try {
-          const res = await authApi.verifyOtp(phone, otpString);
+          const res = await authApi.verifyOtp(phone, otpString, challenge);
           login(res.token, res.user);
           
           if (!res.user.name) {
@@ -88,7 +89,9 @@ export const OtpVerify: React.FC = () => {
   const handleResend = async () => {
     if (countdown > 0) return;
     try {
-      await authApi.sendOtp(phone);
+      const res = await authApi.sendOtp(phone);
+      setDemoOtp(res.otp);
+      setChallenge(res.challenge);
       setCountdown(30);
       setError('');
     } catch (err: any) {

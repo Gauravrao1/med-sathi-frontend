@@ -34,14 +34,14 @@ export const apiClient = {
 
 export const authApi = {
   sendOtp: (phone: string) =>
-    apiClient.request<{ message: string }>('/auth/send-otp', {
+    apiClient.request<{ message: string; otp: string; challenge: string }>('/auth/send-otp', {
       method: 'POST',
       body: JSON.stringify({ phone }),
     }),
-  verifyOtp: (phone: string, otp: string) =>
+  verifyOtp: (phone: string, otp: string, challenge?: string) =>
     apiClient.request<{ token: string; user: any }>('/auth/verify-otp', {
       method: 'POST',
-      body: JSON.stringify({ phone, otp }),
+      body: JSON.stringify({ phone, otp, challenge }),
     }),
   updateProfile: (data: any) =>
     apiClient.request<any>('/auth/profile', {

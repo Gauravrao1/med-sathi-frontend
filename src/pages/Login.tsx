@@ -23,7 +23,7 @@ export const Login: React.FC = () => {
 
     try {
       const res = await authApi.sendOtp(phone);
-      navigate('/otp', { state: { phone, demoOtp: (res as any).otp } });
+      navigate('/otp', { state: { phone, demoOtp: res.otp, challenge: res.challenge } });
     } catch (err: any) {
       setError(err.message || t('common.error'));
     } finally {
