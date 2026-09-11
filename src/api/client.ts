@@ -33,6 +33,26 @@ export const apiClient = {
 };
 
 export const authApi = {
+  register: (data: { email: string; password: string; name: string; phone: string }) =>
+    apiClient.request<any>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  loginWithEmail: (email: string, password: string) =>
+    apiClient.request<{ token: string; user: any }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    }),
+  forgotPassword: (phone: string) =>
+    apiClient.request<{ message: string; otp: string }>('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ phone }),
+    }),
+  resetPassword: (phone: string, otp: string, new_password: string) =>
+    apiClient.request<{ message: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ phone, otp, new_password }),
+    }),
   sendOtp: (phone: string) =>
     apiClient.request<{ message: string; otp: string; challenge: string }>('/auth/send-otp', {
       method: 'POST',

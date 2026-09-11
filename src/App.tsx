@@ -8,6 +8,8 @@ import { BottomNav } from './components/BottomNav';
 // Pages
 import { Splash } from './pages/Splash';
 import { Login } from './pages/Login';
+import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
 import { OtpVerify } from './pages/OtpVerify';
 import { ProfileSetup } from './pages/ProfileSetup';
 import { Consent } from './pages/Consent';
@@ -47,7 +49,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 const AppLayout: React.FC = () => {
   const location = useLocation();
-  const publicPaths = ['/', '/login', '/otp', '/profile-setup', '/consent'];
+  const publicPaths = ['/', '/login', '/register', '/forgot-password', '/otp', '/profile-setup', '/consent'];
   const showNav = !publicPaths.includes(location.pathname);
 
   return (
@@ -56,6 +58,8 @@ const AppLayout: React.FC = () => {
         {/* Public routes */}
         <Route path="/" element={<Splash />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/otp" element={<OtpVerify />} />
         <Route path="/profile-setup" element={<ProfileSetup />} />
         <Route path="/consent" element={<Consent />} />
