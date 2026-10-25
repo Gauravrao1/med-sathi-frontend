@@ -48,7 +48,7 @@ export const Login: React.FC = () => {
         <div className="p-8">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-teal-600 flex items-center justify-center gap-2">
-              <span role="img" aria-label="pill">💊</span> MedSathi
+              <span role="img" aria-label="pill">💊</span> Aslee
             </h1>
             <p className="text-gray-500 mt-2">Your Medicine Companion</p>
           </div>
@@ -71,7 +71,7 @@ export const Login: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none text-gray-800"
-                  placeholder="john@example.com"
+                  placeholder=" "
                 />
               </div>
             </div>

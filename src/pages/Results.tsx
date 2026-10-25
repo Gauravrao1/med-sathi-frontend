@@ -245,10 +245,10 @@ export const Results: React.FC = () => {
   }));
 
   const handleShare = async () => {
-    const shareText = 'MedSathi Scan: ' + medicine.brand_name + ' (' + medicine.generic_name + ') - Trust Score: ' + (trustScore?.score || 0) + '/100';
+    const shareText = 'Aslee Scan: ' + medicine.brand_name + ' (' + medicine.generic_name + ') - Trust Score: ' + (trustScore?.score || 0) + '/100';
     try {
       if (navigator.share) {
-        await navigator.share({ title: 'MedSathi Scan Result', text: shareText, url: window.location.href });
+        await navigator.share({ title: 'Aslee Scan Result', text: shareText, url: window.location.href });
       } else {
         await navigator.clipboard.writeText(shareText);
         alert('Result copied to clipboard!');
