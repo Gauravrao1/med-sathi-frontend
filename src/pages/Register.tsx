@@ -91,7 +91,7 @@ export default function Register() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none text-gray-800"
-                  placeholder="John Doe"
+                  placeholder=""
                 />
               </div>
             </div>
@@ -107,7 +107,7 @@ export default function Register() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none text-gray-800"
-                  placeholder="john@example.com"
+                  placeholder=" "
                 />
               </div>
             </div>
@@ -127,7 +127,7 @@ export default function Register() {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                     className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-r-xl focus:bg-white focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none text-gray-800"
-                    placeholder="9876543210"
+                    placeholder=""
                   />
                 </div>
               </div>
