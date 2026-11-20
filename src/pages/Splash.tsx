@@ -19,8 +19,8 @@ export const Splash: React.FC = () => {
           <ShieldCheck size={80} className="text-teal-600" />
         </div>
         
-        <h1 className="text-5xl font-bold text-teal-700 mb-1">Aslee</h1>
-        <h2 className="text-2xl font-medium text-gray-500 mb-6">असली</h2>
+        <h1 className="text-5xl font-bold text-teal-700 mb-1">MedSathi</h1>
+        <h2 className="text-2xl font-medium text-gray-500 mb-6">मेडसाथी</h2>
         
         <p className="text-lg text-gray-600 text-center max-w-xs">
           {t('splash.subtitle')}

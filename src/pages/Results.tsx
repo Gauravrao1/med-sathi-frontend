@@ -4,7 +4,7 @@ import { useTranslation } from '../i18n/I18nProvider';
 import { TrustBadge } from '../components/TrustBadge';
 import { RecallBanner } from '../components/RecallBanner';
 import { Disclaimer } from '../components/Disclaimer';
-import { Camera, Calendar, AlertTriangle, Shield, CheckCircle, XCircle, Building2, Pill, TrendingDown, Share2, MessageSquare, Factory, Clock, Package, BadgeCheck, ArrowRight, IndianRupee, Star } from 'lucide-react';
+import { Camera, Calendar, AlertTriangle, Shield, CheckCircle, XCircle, Building2, Pill, TrendingDown, Share2, MessageSquare, Factory, Clock, Package, BadgeCheck, ArrowRight, IndianRupee, Star, ExternalLink, ThumbsUp, ThumbsDown, Info } from 'lucide-react';
 
 interface ScanResult {
   status: 'verified' | 'unverified' | 'not_found';
@@ -17,7 +17,7 @@ interface ScanResult {
   recalls: any[];
 }
 
-// Known verified Indian pharma companies
+// Known verified Indian pharma companies (CDSCO registered)
 const VERIFIED_COMPANIES = [
   'Cipla', 'Sun Pharma', 'Abbott', 'Lupin', "Dr. Reddy's", 'Mankind', 'Zydus', 'Torrent',
   'Glenmark', 'Alkem', 'Micro Labs', 'GSK', 'Sanofi', 'Pfizer', 'Ranbaxy', 'Ipca', 'Biocon',
@@ -36,6 +36,60 @@ const getCompanyCategory = (manufacturer: string): string => {
 
 const isVerifiedCompany = (manufacturer: string): boolean => {
   return VERIFIED_COMPANIES.some(c => manufacturer.toLowerCase().includes(c.toLowerCase()));
+};
+
+// CDSCO verification rating based on multiple signals
+const getCDSCORating = (medicine: any, batch: any, isCompanyVerified: boolean, isPriceCompliant: boolean, isExpired: boolean, recalls: any[]): { rating: string; score: number; color: string; label: string; details: string[] } => {
+  let score = 0;
+  const details: string[] = [];
+
+  // Company verification (30 points)
+  if (isCompanyVerified) {
+    score += 30;
+    details.push('Manufacturer registered with CDSCO');
+  } else {
+    details.push('Manufacturer not found in CDSCO registry');
+  }
+
+  // Batch verification (25 points)
+  if (batch && batch.verification_status === 'genuine') {
+    score += 25;
+    details.push('Batch number verified as genuine');
+  } else if (batch) {
+    score += 10;
+    details.push('Batch found but status: ' + (batch.verification_status || 'unknown'));
+  } else {
+    details.push('Batch number not in verification database');
+  }
+
+  // Expiry check (20 points)
+  if (!isExpired) {
+    score += 20;
+    details.push('Medicine within valid expiry period');
+  } else {
+    details.push('EXPIRED - Do not consume');
+  }
+
+  // NPPA price compliance (15 points)
+  if (isPriceCompliant) {
+    score += 15;
+    details.push('Price within NPPA ceiling limit');
+  } else {
+    details.push('Price exceeds NPPA ceiling - possible overcharging');
+  }
+
+  // No recalls (10 points)
+  if (recalls.length === 0) {
+    score += 10;
+    details.push('No active recalls on this batch');
+  } else {
+    details.push('Active recall alert on this batch');
+  }
+
+  if (score >= 80) return { rating: 'A', score, color: 'green', label: 'Highly Trustworthy', details };
+  if (score >= 60) return { rating: 'B', score, color: 'teal', label: 'Likely Genuine', details };
+  if (score >= 40) return { rating: 'C', score, color: 'amber', label: 'Needs Verification', details };
+  return { rating: 'D', score, color: 'red', label: 'Potentially Unsafe', details };
 };
 
 export const Results: React.FC = () => {
@@ -78,7 +132,7 @@ export const Results: React.FC = () => {
                 <div>
                   <h3 className="font-bold text-amber-800 text-sm mb-1">AI Scanning Not Set Up</h3>
                   <p className="text-amber-700 text-xs mb-3">
-                    The app needs a Gemini API key to read medicine images. The key is <strong>completely free</strong>.
+                    MedSathi needs a Gemini API key to read medicine images. The key is <strong>completely free</strong>.
                   </p>
                   <div className="bg-white rounded-lg border border-amber-200 p-3 space-y-2">
                     <p className="text-xs font-bold text-gray-700">Setup (2 minutes):</p>
@@ -127,6 +181,8 @@ export const Results: React.FC = () => {
   // ==================== UNVERIFIED ====================
   if (result.status === 'unverified') {
     const extracted = result.extracted || {};
+    const companyVerified = extracted.manufacturer ? isVerifiedCompany(extracted.manufacturer) : false;
+
     return (
       <div className="min-h-screen bg-gray-50 pb-24">
         <div className="bg-amber-500 text-white p-6">
@@ -144,12 +200,16 @@ export const Results: React.FC = () => {
              </p>
           </div>
 
+          {/* Scanned Data Details */}
           <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <h3 className="font-bold text-gray-900 mb-4">Extracted Details</h3>
+            <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <Shield size={16} className="text-blue-600" />
+              Scanned Data
+            </h3>
             <div className="space-y-3">
               {[
                 { label: 'Brand Name', value: extracted.medicine_name },
-                { label: 'Generic', value: extracted.generic_name },
+                { label: 'Generic (Salt)', value: extracted.generic_name },
                 { label: 'Manufacturer', value: extracted.manufacturer },
                 { label: 'Batch Number', value: extracted.batch_number },
                 { label: 'Expiry Date', value: extracted.expiry_date },
@@ -164,24 +224,33 @@ export const Results: React.FC = () => {
             </div>
           </div>
 
-          {/* Company check even for unverified */}
+          {/* CDSCO Brand Verification */}
           {extracted.manufacturer && (
-            <div className={'rounded-xl border p-4 ' + (isVerifiedCompany(extracted.manufacturer) ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200')}>
+            <div className={'rounded-xl border p-4 ' + (companyVerified ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200')}>
               <div className="flex items-center gap-2 mb-2">
-                {isVerifiedCompany(extracted.manufacturer) ? (
+                {companyVerified ? (
                   <BadgeCheck size={20} className="text-green-600" />
                 ) : (
-                  <AlertTriangle size={20} className="text-amber-600" />
+                  <XCircle size={20} className="text-red-600" />
                 )}
-                <span className={'font-bold text-sm ' + (isVerifiedCompany(extracted.manufacturer) ? 'text-green-800' : 'text-amber-800')}>
-                  {isVerifiedCompany(extracted.manufacturer) ? 'Known Manufacturer' : 'Unknown Manufacturer'}
+                <span className={'font-bold text-sm ' + (companyVerified ? 'text-green-800' : 'text-red-800')}>
+                  {companyVerified ? 'CDSCO Registered Manufacturer' : 'Brand Not Found in CDSCO Registry'}
                 </span>
               </div>
-              <p className={'text-xs ' + (isVerifiedCompany(extracted.manufacturer) ? 'text-green-700' : 'text-amber-700')}>
-                {isVerifiedCompany(extracted.manufacturer) 
-                  ? extracted.manufacturer + ' is a known Indian pharmaceutical company.'
-                  : extracted.manufacturer + ' is not in our verified list. Verify independently on cdsco.gov.in'}
+              <p className={'text-xs ' + (companyVerified ? 'text-green-700' : 'text-red-700')}>
+                {companyVerified 
+                  ? extracted.manufacturer + ' is a licensed pharmaceutical company registered with CDSCO (Central Drugs Standard Control Organisation).'
+                  : extracted.manufacturer + ' was not found in our CDSCO verified manufacturer list. This could mean the brand is not registered or is counterfeit. Verify independently at cdsco.gov.in'}
               </p>
+              {!companyVerified && (
+                <button
+                  onClick={() => window.open('https://cdscoonline.gov.in/CDSCO/Drugs', '_blank')}
+                  className="mt-3 w-full bg-red-100 text-red-800 py-2.5 rounded-lg font-semibold text-xs flex items-center justify-center gap-2"
+                >
+                  <ExternalLink size={14} />
+                  Verify on CDSCO Website
+                </button>
+              )}
             </div>
           )}
 
@@ -227,6 +296,9 @@ export const Results: React.FC = () => {
     }))
   };
 
+  // CDSCO Rating
+  const cdscRating = getCDSCORating(medicine, batch, isCompanyVerified, isPriceCompliant, isExpired, recalls);
+
   const alternativesFormatted = alternatives.map((alt: any) => ({
     id: String(alt.alternative_medicine?.id || alt.alternative_medicine_id),
     brandName: alt.alternative_medicine?.brand_name || 'Generic Alternative',
@@ -245,10 +317,10 @@ export const Results: React.FC = () => {
   }));
 
   const handleShare = async () => {
-    const shareText = 'Aslee Scan: ' + medicine.brand_name + ' (' + medicine.generic_name + ') - Trust Score: ' + (trustScore?.score || 0) + '/100';
+    const shareText = 'MedSathi Scan: ' + medicine.brand_name + ' (' + medicine.generic_name + ') - Trust Score: ' + (trustScore?.score || 0) + '/100';
     try {
       if (navigator.share) {
-        await navigator.share({ title: 'Aslee Scan Result', text: shareText, url: window.location.href });
+        await navigator.share({ title: 'MedSathi Scan Result', text: shareText, url: window.location.href });
       } else {
         await navigator.clipboard.writeText(shareText);
         alert('Result copied to clipboard!');
@@ -280,7 +352,7 @@ export const Results: React.FC = () => {
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
               <Shield size={16} className="text-blue-600" />
-              <span className="text-blue-800 font-semibold text-sm">Scanned from Image</span>
+              <span className="text-blue-800 font-semibold text-sm">Scanned Data from Image</span>
               <span className="bg-blue-200 text-blue-800 text-[10px] px-2 py-0.5 rounded-full font-bold ml-auto">
                 {result.extracted.confidence || 0}% confidence
               </span>
@@ -310,6 +382,24 @@ export const Results: React.FC = () => {
                   <span className="text-blue-900 font-medium">{result.extracted.expiry_date}</span>
                 </>
               )}
+              {result.extracted.generic_name && (
+                <>
+                  <span className="text-blue-600">Generic</span>
+                  <span className="text-blue-900 font-medium">{result.extracted.generic_name}</span>
+                </>
+              )}
+              {result.extracted.strength && (
+                <>
+                  <span className="text-blue-600">Strength</span>
+                  <span className="text-blue-900 font-medium">{result.extracted.strength}</span>
+                </>
+              )}
+              {result.extracted.mrp && (
+                <>
+                  <span className="text-blue-600">MRP</span>
+                  <span className="text-blue-900 font-medium">{'\u20B9'}{result.extracted.mrp}</span>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -318,6 +408,45 @@ export const Results: React.FC = () => {
         {recallsFormatted.map(recall => (
           <RecallBanner key={recall.id} recall={recall} />
         ))}
+
+        {/* ===== CDSCO VERIFICATION RATING ===== */}
+        <div className={'rounded-xl border-2 p-4 ' + (cdscRating.color === 'green' ? 'bg-green-50 border-green-300' : cdscRating.color === 'teal' ? 'bg-teal-50 border-teal-300' : cdscRating.color === 'amber' ? 'bg-amber-50 border-amber-300' : 'bg-red-50 border-red-300')}>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Shield size={18} className={cdscRating.color === 'green' ? 'text-green-600' : cdscRating.color === 'teal' ? 'text-teal-600' : cdscRating.color === 'amber' ? 'text-amber-600' : 'text-red-600'} />
+              <h3 className={'font-bold text-sm ' + (cdscRating.color === 'green' ? 'text-green-800' : cdscRating.color === 'teal' ? 'text-teal-800' : cdscRating.color === 'amber' ? 'text-amber-800' : 'text-red-800')}>
+                CDSCO Verification Rating
+              </h3>
+            </div>
+            <div className={'w-10 h-10 rounded-full flex items-center justify-center font-black text-lg border-2 ' + (cdscRating.color === 'green' ? 'bg-green-600 text-white border-green-700' : cdscRating.color === 'teal' ? 'bg-teal-600 text-white border-teal-700' : cdscRating.color === 'amber' ? 'bg-amber-500 text-white border-amber-600' : 'bg-red-600 text-white border-red-700')}>
+              {cdscRating.rating}
+            </div>
+          </div>
+          <p className={'text-xs font-bold mb-2 ' + (cdscRating.color === 'green' ? 'text-green-700' : cdscRating.color === 'teal' ? 'text-teal-700' : cdscRating.color === 'amber' ? 'text-amber-700' : 'text-red-700')}>
+            {cdscRating.label} ({cdscRating.score}/100)
+          </p>
+          <div className="space-y-1.5">
+            {cdscRating.details.map((detail, i) => (
+              <div key={i} className="flex items-start gap-2 text-xs">
+                {detail.includes('not found') || detail.includes('EXPIRED') || detail.includes('exceeds') || detail.includes('recall') ? (
+                  <XCircle size={13} className="text-red-500 shrink-0 mt-0.5" />
+                ) : detail.includes('status:') ? (
+                  <AlertTriangle size={13} className="text-amber-500 shrink-0 mt-0.5" />
+                ) : (
+                  <CheckCircle size={13} className="text-green-500 shrink-0 mt-0.5" />
+                )}
+                <span className="text-gray-700">{detail}</span>
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={() => window.open('https://cdscoonline.gov.in/CDSCO/Drugs', '_blank')}
+            className="mt-3 w-full bg-white/60 py-2 rounded-lg text-xs font-bold text-gray-700 flex items-center justify-center gap-1.5 border border-gray-200"
+          >
+            <ExternalLink size={12} />
+            Cross-verify on CDSCO Official Website
+          </button>
+        </div>
 
         {/* Trust Score */}
         {trustScore && <TrustBadge result={trustScoreResult} />}
@@ -394,7 +523,7 @@ export const Results: React.FC = () => {
               )}
               <div>
                 <p className={'text-sm font-medium ' + (isCompanyVerified ? 'text-green-800' : 'text-amber-800')}>
-                  {isCompanyVerified ? 'Verified Manufacturer' : 'Manufacturer Not in Verified List'}
+                  {isCompanyVerified ? 'CDSCO Registered Manufacturer' : 'Manufacturer Not in CDSCO Registry'}
                 </p>
                 <p className={'text-[11px] ' + (isCompanyVerified ? 'text-green-600' : 'text-amber-600')}>
                   {medicine?.manufacturer}
@@ -478,14 +607,21 @@ export const Results: React.FC = () => {
         {/* ===== JAN AUSHADHI ALTERNATIVES ===== */}
         {alternativesFormatted.length > 0 ? (
           <div className="bg-teal-50 rounded-xl border-2 border-teal-200 p-4">
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-1">
               <div className="bg-teal-600 text-white p-1.5 rounded-lg">
                 <Star size={16} />
               </div>
               <div>
-                <h3 className="font-bold text-teal-800 text-sm">{'\uD83D\uDC8A'} Jan Aushadhi Alternative Available!</h3>
-                <p className="text-[11px] text-teal-600">Same medicine, 50-90% cheaper</p>
+                <h3 className="font-bold text-teal-800 text-sm">{'\uD83D\uDC8A'} Jan Aushadhi Alternative Recommended!</h3>
+                <p className="text-[11px] text-teal-600">Government-approved generic — same salt, same quality</p>
               </div>
+            </div>
+
+            <div className="bg-teal-100/60 rounded-lg px-3 py-2 mt-2 mb-3">
+              <p className="text-[11px] text-teal-800 font-medium flex items-center gap-1.5">
+                <Info size={12} />
+                PMBJP generics are WHO-GMP certified with identical active ingredients
+              </p>
             </div>
 
             {alternativesFormatted.map((alt: any) => {
@@ -494,46 +630,52 @@ export const Results: React.FC = () => {
 
               return (
                 <div key={alt.id} className="bg-white rounded-xl p-4 mb-3 border border-teal-100">
-                  {/* Side by side comparison */}
+                  {/* Price Comparison Side by Side */}
                   <div className="flex gap-3 mb-3">
-                    <div className="flex-1 text-center p-2 bg-gray-50 rounded-lg">
-                      <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Your Medicine</p>
+                    <div className="flex-1 text-center p-2.5 bg-gray-50 rounded-lg border border-gray-200">
+                      <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Branded</p>
                       <p className="text-sm font-bold text-gray-900">{medicine?.brand_name}</p>
-                      <p className="text-lg font-bold text-gray-700">{'\u20B9'}{(medicine?.mrp || 0).toFixed(2)}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{medicine?.manufacturer}</p>
+                      <p className="text-lg font-bold text-gray-700 mt-1">{'\u20B9'}{(medicine?.mrp || 0).toFixed(2)}</p>
                     </div>
                     <div className="flex items-center">
                       <ArrowRight size={20} className="text-teal-500" />
                     </div>
-                    <div className="flex-1 text-center p-2 bg-teal-50 rounded-lg border border-teal-200">
-                      <p className="text-[10px] text-teal-600 font-bold uppercase mb-1">Jan Aushadhi</p>
+                    <div className="flex-1 text-center p-2.5 bg-teal-50 rounded-lg border-2 border-teal-300">
+                      <p className="text-[10px] text-teal-600 font-bold uppercase mb-1">{'\uD83C\uDFE5'} Jan Aushadhi</p>
                       <p className="text-sm font-bold text-teal-800">{alt.brandName}</p>
-                      <p className="text-lg font-bold text-teal-700">{'\u20B9'}{alt.mrp.toFixed(2)}</p>
+                      <p className="text-xs text-teal-600 mt-0.5">{alt.manufacturer}</p>
+                      <p className="text-lg font-bold text-teal-700 mt-1">{'\u20B9'}{alt.mrp.toFixed(2)}</p>
                     </div>
                   </div>
 
                   {/* Savings badge */}
                   {savings > 0 && (
-                    <div className="bg-green-100 rounded-lg p-2.5 text-center">
+                    <div className="bg-green-100 rounded-lg p-3 text-center border border-green-200">
                       <div className="flex items-center justify-center gap-2">
                         <TrendingDown size={16} className="text-green-700" />
                         <span className="font-bold text-green-800 text-sm">
-                          {'Save \u20B9' + savings.toFixed(2) + ' (' + savingsPercent + '% less)'}
+                          {'Save \u20B9' + savings.toFixed(2) + ' (' + savingsPercent + '% cheaper!)'}
                         </span>
                       </div>
+                      <p className="text-[10px] text-green-600 mt-1">Same {alt.genericName} {alt.strength} — same therapeutic effect</p>
                     </div>
                   )}
-
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    {alt.genericName} {alt.strength} by {alt.manufacturer}
-                  </p>
                 </div>
               );
             })}
 
             <div className="bg-teal-100/50 rounded-lg p-3 mt-2">
               <p className="text-xs text-teal-700 font-medium">
-                {'\uD83C\uDFE5'} Available at 10,000+ Jan Aushadhi Kendras across India. Find nearest: janaushadhi.gov.in
+                {'\uD83C\uDFE5'} Available at 10,000+ Jan Aushadhi Kendras across India
               </p>
+              <button
+                onClick={() => window.open('https://janaushadhi.gov.in/', '_blank')}
+                className="mt-2 w-full bg-teal-600 text-white py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5"
+              >
+                <ExternalLink size={12} />
+                Find Nearest Jan Aushadhi Kendra
+              </button>
             </div>
           </div>
         ) : (

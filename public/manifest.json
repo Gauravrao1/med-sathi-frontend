@@ -1,7 +1,7 @@
 {
-  "name": "Aslee - Medicine Verification",
-  "short_name": "Aslee",
-  "description": "Verify your medicines instantly with Aslee",
+  "name": "MedSathi - Medicine Verification",
+  "short_name": "MedSathi",
+  "description": "Verify your medicines instantly with MedSathi",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
