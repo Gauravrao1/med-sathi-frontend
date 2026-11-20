@@ -4,10 +4,30 @@ import { useTranslation } from '../i18n/I18nProvider';
 import { TrustBadge } from '../components/TrustBadge';
 import { RecallBanner } from '../components/RecallBanner';
 import { Disclaimer } from '../components/Disclaimer';
-import { Camera, Calendar, AlertTriangle, Shield, CheckCircle, XCircle, Building2, Pill, TrendingDown, Share2, MessageSquare, Factory, Clock, Package, BadgeCheck, ArrowRight, IndianRupee, Star, ExternalLink, ThumbsUp, ThumbsDown, Info } from 'lucide-react';
+import { Camera, Calendar, AlertTriangle, Shield, CheckCircle, XCircle, Building2, Pill, TrendingDown, Share2, MessageSquare, Factory, Clock, Package, BadgeCheck, ArrowRight, IndianRupee, Star, ExternalLink, ThumbsUp, ThumbsDown, Info, Bot, Sparkles, ShieldCheck, ShieldAlert } from 'lucide-react';
+
+interface AIVerification {
+  is_brand_real: boolean;
+  brand_exists_in_india: boolean;
+  cdsco_manufacturer_status: string;
+  manufacturer_verified: boolean;
+  typical_price_range: { min: number; max: number } | null;
+  is_price_reasonable: boolean;
+  jan_aushadhi_alternative: {
+    name: string;
+    generic_name: string;
+    approximate_price: number;
+    manufacturer: string;
+  } | null;
+  genuineness_rating: string;
+  genuineness_score: number;
+  verification_notes: string[];
+  drug_category: string | null;
+  prescription_required: boolean;
+}
 
 interface ScanResult {
-  status: 'verified' | 'unverified' | 'not_found';
+  status: 'verified' | 'unverified' | 'ai_verified' | 'not_found';
   error_message?: string;
   extracted?: any;
   medicine: any;
@@ -15,6 +35,7 @@ interface ScanResult {
   trust_score: any;
   alternatives: any[];
   recalls: any[];
+  ai_verification?: AIVerification | null;
 }
 
 // Known verified Indian pharma companies (CDSCO registered)
@@ -90,6 +111,20 @@ const getCDSCORating = (medicine: any, batch: any, isCompanyVerified: boolean, i
   if (score >= 60) return { rating: 'B', score, color: 'teal', label: 'Likely Genuine', details };
   if (score >= 40) return { rating: 'C', score, color: 'amber', label: 'Needs Verification', details };
   return { rating: 'D', score, color: 'red', label: 'Potentially Unsafe', details };
+};
+
+// AI genuineness rating color/label helpers
+const getAIRatingConfig = (rating: string): { color: string; label: string; bgColor: string; borderColor: string; textColor: string } => {
+  switch (rating) {
+    case 'genuine':
+      return { color: 'green', label: 'Genuine Medicine', bgColor: 'bg-green-50', borderColor: 'border-green-300', textColor: 'text-green-800' };
+    case 'likely_genuine':
+      return { color: 'teal', label: 'Likely Genuine', bgColor: 'bg-teal-50', borderColor: 'border-teal-300', textColor: 'text-teal-800' };
+    case 'suspicious':
+      return { color: 'red', label: 'Suspicious', bgColor: 'bg-red-50', borderColor: 'border-red-300', textColor: 'text-red-800' };
+    default:
+      return { color: 'amber', label: 'Unknown', bgColor: 'bg-amber-50', borderColor: 'border-amber-300', textColor: 'text-amber-800' };
+  }
 };
 
 export const Results: React.FC = () => {
@@ -178,7 +213,332 @@ export const Results: React.FC = () => {
     );
   }
 
-  // ==================== UNVERIFIED ====================
+  // ==================== AI VERIFIED (not in DB but AI checked) ====================
+  if (result.status === 'ai_verified') {
+    const extracted = result.extracted || {};
+    const aiV = result.ai_verification;
+    const ratingConfig = aiV ? getAIRatingConfig(aiV.genuineness_rating) : getAIRatingConfig('unknown');
+
+    return (
+      <div className="min-h-screen bg-gray-50 pb-24">
+        {/* Header */}
+        <div className={aiV && aiV.genuineness_rating === 'genuine' ? 'bg-teal-600 text-white p-6' : aiV && aiV.genuineness_rating === 'likely_genuine' ? 'bg-teal-500 text-white p-6' : aiV && aiV.genuineness_rating === 'suspicious' ? 'bg-red-500 text-white p-6' : 'bg-amber-500 text-white p-6'}>
+          <div className="flex items-center gap-2 mb-1">
+            <Bot size={20} />
+            <span className="text-sm font-medium opacity-90">AI Verified</span>
+            <span className="bg-white/20 text-[10px] px-2 py-0.5 rounded-full font-bold ml-auto">
+              Powered by Gemini AI
+            </span>
+          </div>
+          <h1 className="text-2xl font-bold">{extracted.medicine_name || 'Unknown Medicine'}</h1>
+          <p className="text-white/80 text-sm mt-1">
+            {extracted.generic_name || ''} {extracted.strength || ''} {extracted.manufacturer ? ' \u00B7 ' + extracted.manufacturer : ''}
+          </p>
+        </div>
+
+        <div className="p-4 space-y-4">
+          {/* AI Verification Badge */}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex gap-3">
+            <Sparkles className="text-blue-500 shrink-0" size={24} />
+            <div>
+              <p className="text-blue-800 text-sm font-semibold">AI-Powered Verification</p>
+              <p className="text-blue-600 text-xs mt-0.5">
+                This medicine was not found in our local database. Gemini AI has verified it using pharmaceutical knowledge.
+              </p>
+            </div>
+          </div>
+
+          {/* ===== AI GENUINENESS RATING ===== */}
+          {aiV && (
+            <div className={'rounded-xl border-2 p-4 ' + ratingConfig.bgColor + ' ' + ratingConfig.borderColor}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  {aiV.genuineness_rating === 'genuine' || aiV.genuineness_rating === 'likely_genuine' ? (
+                    <ShieldCheck size={18} className="text-green-600" />
+                  ) : aiV.genuineness_rating === 'suspicious' ? (
+                    <ShieldAlert size={18} className="text-red-600" />
+                  ) : (
+                    <Shield size={18} className="text-amber-600" />
+                  )}
+                  <h3 className={'font-bold text-sm ' + ratingConfig.textColor}>
+                    AI Verification Rating
+                  </h3>
+                </div>
+                <div className={'w-12 h-12 rounded-full flex items-center justify-center font-black text-lg border-2 ' + (aiV.genuineness_score >= 80 ? 'bg-green-600 text-white border-green-700' : aiV.genuineness_score >= 60 ? 'bg-teal-600 text-white border-teal-700' : aiV.genuineness_score >= 40 ? 'bg-amber-500 text-white border-amber-600' : 'bg-red-600 text-white border-red-700')}>
+                  {aiV.genuineness_score}
+                </div>
+              </div>
+              <p className={'text-xs font-bold mb-2 ' + ratingConfig.textColor}>
+                {ratingConfig.label} ({aiV.genuineness_score}/100)
+              </p>
+
+              {/* Verification checks */}
+              <div className="space-y-1.5">
+                <div className="flex items-start gap-2 text-xs">
+                  {aiV.is_brand_real ? (
+                    <CheckCircle size={13} className="text-green-500 shrink-0 mt-0.5" />
+                  ) : (
+                    <XCircle size={13} className="text-red-500 shrink-0 mt-0.5" />
+                  )}
+                  <span className="text-gray-700">
+                    {aiV.is_brand_real ? 'Brand name exists in Indian market' : 'Brand name not recognized'}
+                  </span>
+                </div>
+                <div className="flex items-start gap-2 text-xs">
+                  {aiV.manufacturer_verified ? (
+                    <CheckCircle size={13} className="text-green-500 shrink-0 mt-0.5" />
+                  ) : (
+                    <XCircle size={13} className="text-red-500 shrink-0 mt-0.5" />
+                  )}
+                  <span className="text-gray-700">
+                    {'Manufacturer: ' + (aiV.cdsco_manufacturer_status === 'registered' ? 'CDSCO Registered' : aiV.cdsco_manufacturer_status === 'not_found' ? 'Not found in CDSCO' : 'Status unknown')}
+                  </span>
+                </div>
+                {aiV.typical_price_range && extracted.mrp && (
+                  <div className="flex items-start gap-2 text-xs">
+                    {aiV.is_price_reasonable ? (
+                      <CheckCircle size={13} className="text-green-500 shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertTriangle size={13} className="text-amber-500 shrink-0 mt-0.5" />
+                    )}
+                    <span className="text-gray-700">
+                      {'MRP \u20B9' + extracted.mrp + ' (typical range: \u20B9' + aiV.typical_price_range.min + ' - \u20B9' + aiV.typical_price_range.max + ')'}
+                    </span>
+                  </div>
+                )}
+                {aiV.drug_category && (
+                  <div className="flex items-start gap-2 text-xs">
+                    <Info size={13} className="text-blue-500 shrink-0 mt-0.5" />
+                    <span className="text-gray-700">
+                      {'Drug Category: ' + aiV.drug_category + (aiV.prescription_required ? ' (Prescription Required)' : ' (OTC)')}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Verification Notes */}
+              {aiV.verification_notes && aiV.verification_notes.length > 0 && (
+                <div className="mt-3 bg-white/60 rounded-lg p-3">
+                  <p className="text-[10px] text-gray-500 font-bold uppercase mb-1.5">AI Notes</p>
+                  {aiV.verification_notes.map(function(note, i) {
+                    return (
+                      <p key={i} className="text-xs text-gray-600 mb-1">{'• ' + note}</p>
+                    );
+                  })}
+                </div>
+              )}
+
+              <button
+                onClick={function() { window.open('https://cdscoonline.gov.in/CDSCO/Drugs', '_blank'); }}
+                className="mt-3 w-full bg-white/60 py-2 rounded-lg text-xs font-bold text-gray-700 flex items-center justify-center gap-1.5 border border-gray-200"
+              >
+                <ExternalLink size={12} />
+                Cross-verify on CDSCO Official Website
+              </button>
+            </div>
+          )}
+
+          {/* Scanned Data Details */}
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <Shield size={16} className="text-blue-600" />
+              Scanned Data
+              <span className="bg-blue-100 text-blue-800 text-[10px] px-2 py-0.5 rounded-full font-bold ml-auto">
+                {extracted.confidence || 0}% confidence
+              </span>
+            </h3>
+            <div className="space-y-3">
+              {[
+                { label: 'Brand Name', value: extracted.medicine_name },
+                { label: 'Generic (Salt)', value: extracted.generic_name },
+                { label: 'Manufacturer', value: extracted.manufacturer },
+                { label: 'Batch Number', value: extracted.batch_number },
+                { label: 'Expiry Date', value: extracted.expiry_date },
+                { label: 'Strength', value: extracted.strength },
+                { label: 'MRP', value: extracted.mrp ? '\u20B9' + extracted.mrp : null }
+              ].map(function(item, i) {
+                return (
+                  <div key={i} className="flex justify-between border-b border-gray-100 pb-2">
+                    <span className="text-gray-500 text-sm">{item.label}</span>
+                    <span className="font-medium text-gray-900 text-right">{item.value || 'N/A'}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* CDSCO Brand Verification from AI */}
+          {extracted.manufacturer && aiV && (
+            <div className={'rounded-xl border p-4 ' + (aiV.manufacturer_verified ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200')}>
+              <div className="flex items-center gap-2 mb-2">
+                {aiV.manufacturer_verified ? (
+                  <BadgeCheck size={20} className="text-green-600" />
+                ) : (
+                  <XCircle size={20} className="text-red-600" />
+                )}
+                <span className={'font-bold text-sm ' + (aiV.manufacturer_verified ? 'text-green-800' : 'text-red-800')}>
+                  {aiV.manufacturer_verified ? 'CDSCO Registered Manufacturer' : 'Manufacturer Not Found in CDSCO Registry'}
+                </span>
+              </div>
+              <p className={'text-xs ' + (aiV.manufacturer_verified ? 'text-green-700' : 'text-red-700')}>
+                {aiV.manufacturer_verified
+                  ? extracted.manufacturer + ' is a licensed pharmaceutical company registered with CDSCO (Central Drugs Standard Control Organisation).'
+                  : extracted.manufacturer + ' was not found in the CDSCO registered manufacturer list. Verify independently.'}
+              </p>
+            </div>
+          )}
+
+          {/* Price Comparison */}
+          {aiV && aiV.typical_price_range && extracted.mrp && (
+            <div className={'rounded-xl border p-4 ' + (aiV.is_price_reasonable ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200')}>
+              <div className="flex items-center gap-2 mb-2">
+                <IndianRupee size={18} className={aiV.is_price_reasonable ? 'text-green-600' : 'text-red-600'} />
+                <h3 className={'font-bold text-sm ' + (aiV.is_price_reasonable ? 'text-green-800' : 'text-red-800')}>
+                  {aiV.is_price_reasonable ? 'Price Within Normal Range' : 'Price Above Normal Range'}
+                </h3>
+              </div>
+              <div className="flex gap-3 mt-2">
+                <div className="flex-1 text-center p-2 bg-white rounded-lg">
+                  <p className="text-[10px] text-gray-400 font-bold uppercase">Your MRP</p>
+                  <p className="text-lg font-bold text-gray-900">{'\u20B9' + extracted.mrp}</p>
+                </div>
+                <div className="flex-1 text-center p-2 bg-white rounded-lg">
+                  <p className="text-[10px] text-gray-400 font-bold uppercase">Typical Range</p>
+                  <p className="text-lg font-bold text-gray-700">{'\u20B9' + aiV.typical_price_range.min + ' - \u20B9' + aiV.typical_price_range.max}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ===== JAN AUSHADHI ALTERNATIVE (AI-suggested) ===== */}
+          {aiV && aiV.jan_aushadhi_alternative ? (
+            <div className="bg-teal-50 rounded-xl border-2 border-teal-200 p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="bg-teal-600 text-white p-1.5 rounded-lg">
+                  <Star size={16} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-teal-800 text-sm">{'\uD83D\uDC8A'} Jan Aushadhi Alternative (AI Recommended)</h3>
+                  <p className="text-[11px] text-teal-600">Government-approved generic — same salt, same quality</p>
+                </div>
+              </div>
+
+              <div className="bg-teal-100/60 rounded-lg px-3 py-2 mt-2 mb-3">
+                <p className="text-[11px] text-teal-800 font-medium flex items-center gap-1.5">
+                  <Sparkles size={12} />
+                  Suggested by AI based on pharmaceutical knowledge
+                </p>
+              </div>
+
+              <div className="bg-white rounded-xl p-4 border border-teal-100">
+                {/* Price Comparison Side by Side */}
+                <div className="flex gap-3 mb-3">
+                  <div className="flex-1 text-center p-2.5 bg-gray-50 rounded-lg border border-gray-200">
+                    <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Branded</p>
+                    <p className="text-sm font-bold text-gray-900">{extracted.medicine_name}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{extracted.manufacturer}</p>
+                    <p className="text-lg font-bold text-gray-700 mt-1">{extracted.mrp ? '\u20B9' + extracted.mrp : 'N/A'}</p>
+                  </div>
+                  <div className="flex items-center">
+                    <ArrowRight size={20} className="text-teal-500" />
+                  </div>
+                  <div className="flex-1 text-center p-2.5 bg-teal-50 rounded-lg border-2 border-teal-300">
+                    <p className="text-[10px] text-teal-600 font-bold uppercase mb-1">{'\uD83C\uDFE5'} Jan Aushadhi</p>
+                    <p className="text-sm font-bold text-teal-800">{aiV.jan_aushadhi_alternative.name}</p>
+                    <p className="text-xs text-teal-600 mt-0.5">{aiV.jan_aushadhi_alternative.manufacturer}</p>
+                    <p className="text-lg font-bold text-teal-700 mt-1">{'\u20B9' + aiV.jan_aushadhi_alternative.approximate_price}</p>
+                  </div>
+                </div>
+
+                {/* Savings badge */}
+                {extracted.mrp && aiV.jan_aushadhi_alternative.approximate_price < extracted.mrp && (
+                  <div className="bg-green-100 rounded-lg p-3 text-center border border-green-200">
+                    <div className="flex items-center justify-center gap-2">
+                      <TrendingDown size={16} className="text-green-700" />
+                      <span className="font-bold text-green-800 text-sm">
+                        {'Save \u20B9' + (extracted.mrp - aiV.jan_aushadhi_alternative.approximate_price).toFixed(2) + ' (' + Math.round(((extracted.mrp - aiV.jan_aushadhi_alternative.approximate_price) / extracted.mrp) * 100) + '% cheaper!)'}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-green-600 mt-1">
+                      {'Same ' + (aiV.jan_aushadhi_alternative.generic_name || extracted.generic_name || 'salt') + ' — same therapeutic effect'}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-teal-100/50 rounded-lg p-3 mt-3">
+                <p className="text-xs text-teal-700 font-medium">
+                  {'\uD83C\uDFE5'} Available at 10,000+ Jan Aushadhi Kendras across India
+                </p>
+                <button
+                  onClick={function() { window.open('https://janaushadhi.gov.in/', '_blank'); }}
+                  className="mt-2 w-full bg-teal-600 text-white py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5"
+                >
+                  <ExternalLink size={12} />
+                  Find Nearest Jan Aushadhi Kendra
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 text-center">
+              <Pill size={24} className="text-gray-400 mx-auto mb-2" />
+              <p className="text-sm text-gray-500 font-medium">No Jan Aushadhi alternative found</p>
+              <p className="text-xs text-gray-400 mt-1">Not all medicines have generic equivalents in the PMBJP catalog</p>
+            </div>
+          )}
+
+          {/* Disclaimer */}
+          <Disclaimer />
+
+          {/* ===== ACTION BUTTONS ===== */}
+          <div className="space-y-3">
+            <button
+              onClick={function() { navigate('/scan'); }}
+              className="w-full bg-teal-600 text-white py-4 rounded-xl font-bold text-[15px] flex items-center justify-center gap-2 active:bg-teal-700 transition-colors"
+            >
+              <Camera size={20} />
+              Scan Another Medicine
+            </button>
+
+            <button
+              onClick={function() { navigate('/chat'); }}
+              className="w-full bg-white border-2 border-teal-500 text-teal-700 py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:bg-teal-50 transition-colors"
+            >
+              <MessageSquare size={18} />
+              Ask AI About This Medicine
+            </button>
+
+            <div className="flex gap-3">
+              <button
+                onClick={function() {
+                  var shareText = 'MedSathi Scan: ' + (extracted.medicine_name || 'Unknown') + ' - AI Score: ' + (aiV ? aiV.genuineness_score : 'N/A') + '/100';
+                  if (navigator.share) {
+                    navigator.share({ title: 'MedSathi Scan Result', text: shareText, url: window.location.href });
+                  } else {
+                    navigator.clipboard.writeText(shareText);
+                    alert('Result copied to clipboard!');
+                  }
+                }}
+                className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 active:bg-gray-200"
+              >
+                <Share2 size={16} />
+                Share Result
+              </button>
+              <button
+                onClick={function() { window.open('https://cdscoonline.gov.in/CDSCO/Drugs', '_blank'); }}
+                className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 active:bg-gray-200"
+              >
+                <Shield size={16} />
+                CDSCO Verify
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ==================== UNVERIFIED (no AI, no DB) ====================
   if (result.status === 'unverified') {
     const extracted = result.extracted || {};
     const companyVerified = extracted.manufacturer ? isVerifiedCompany(extracted.manufacturer) : false;
@@ -215,12 +575,14 @@ export const Results: React.FC = () => {
                 { label: 'Expiry Date', value: extracted.expiry_date },
                 { label: 'Strength', value: extracted.strength },
                 { label: 'MRP', value: extracted.mrp ? '\u20B9' + extracted.mrp : null }
-              ].map((item, i) => (
-                <div key={i} className="flex justify-between border-b border-gray-100 pb-2">
-                  <span className="text-gray-500 text-sm">{item.label}</span>
-                  <span className="font-medium text-gray-900 text-right">{item.value || 'N/A'}</span>
-                </div>
-              ))}
+              ].map(function(item, i) {
+                return (
+                  <div key={i} className="flex justify-between border-b border-gray-100 pb-2">
+                    <span className="text-gray-500 text-sm">{item.label}</span>
+                    <span className="font-medium text-gray-900 text-right">{item.value || 'N/A'}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -244,7 +606,7 @@ export const Results: React.FC = () => {
               </p>
               {!companyVerified && (
                 <button
-                  onClick={() => window.open('https://cdscoonline.gov.in/CDSCO/Drugs', '_blank')}
+                  onClick={function() { window.open('https://cdscoonline.gov.in/CDSCO/Drugs', '_blank'); }}
                   className="mt-3 w-full bg-red-100 text-red-800 py-2.5 rounded-lg font-semibold text-xs flex items-center justify-center gap-2"
                 >
                   <ExternalLink size={14} />
@@ -255,7 +617,7 @@ export const Results: React.FC = () => {
           )}
 
           <button
-            onClick={() => navigate('/scan')}
+            onClick={function() { navigate('/scan'); }}
             className="w-full bg-teal-600 text-white py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 active:bg-teal-700 transition-colors"
           >
             <Camera size={20} />
@@ -266,12 +628,13 @@ export const Results: React.FC = () => {
     );
   }
 
-  // ==================== VERIFIED ====================
+  // ==================== VERIFIED (found in DB) ====================
   const medicine = result.medicine;
   const batch = result.batch;
   const trustScore = result.trust_score;
   const alternatives = result.alternatives || [];
   const recalls = result.recalls || [];
+  const aiV = result.ai_verification;
 
   const expiryDate = new Date(batch?.expiry_date);
   const mfgDate = new Date(batch?.mfg_date);
@@ -288,36 +651,44 @@ export const Results: React.FC = () => {
     status: (trustScore?.score || 0) >= 80 ? 'genuine' as const
       : (trustScore?.score || 0) >= 50 ? 'inconclusive' as const
       : 'flagged' as const,
-    breakdown: Object.entries(trustScore?.breakdown || {}).map(([key, value]) => ({
-      label: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-      value: Math.max(0, value as number),
-      max: key === 'verification_status' ? 40 : key === 'manufacturer' ? 20 : key === 'expiry' ? 20 : key === 'base_score' ? 20 : 30,
-      status: (value as number) > 0 ? 'pass' as const : 'fail' as const
-    }))
+    breakdown: Object.entries(trustScore?.breakdown || {}).map(function(entry) {
+      var key = entry[0] as string;
+      var value = entry[1] as number;
+      return {
+        label: key.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); }),
+        value: Math.max(0, value),
+        max: key === 'verification_status' ? 40 : key === 'manufacturer' ? 20 : key === 'expiry' ? 20 : key === 'base_score' ? 20 : 30,
+        status: value > 0 ? 'pass' as const : 'fail' as const
+      };
+    })
   };
 
   // CDSCO Rating
   const cdscRating = getCDSCORating(medicine, batch, isCompanyVerified, isPriceCompliant, isExpired, recalls);
 
-  const alternativesFormatted = alternatives.map((alt: any) => ({
-    id: String(alt.alternative_medicine?.id || alt.alternative_medicine_id),
-    brandName: alt.alternative_medicine?.brand_name || 'Generic Alternative',
-    genericName: alt.alternative_medicine?.generic_name || '',
-    manufacturer: alt.alternative_medicine?.manufacturer || 'Jan Aushadhi',
-    mrp: alt.alternative_medicine?.mrp || 0,
-    strength: alt.alternative_medicine?.strength || ''
-  }));
+  const alternativesFormatted = alternatives.map(function(alt: any) {
+    return {
+      id: String(alt.alternative_medicine?.id || alt.alternative_medicine_id),
+      brandName: alt.alternative_medicine?.brand_name || 'Generic Alternative',
+      genericName: alt.alternative_medicine?.generic_name || '',
+      manufacturer: alt.alternative_medicine?.manufacturer || 'Jan Aushadhi',
+      mrp: alt.alternative_medicine?.mrp || 0,
+      strength: alt.alternative_medicine?.strength || ''
+    };
+  });
 
-  const recallsFormatted = recalls.map((r: any) => ({
-    id: String(r.id),
-    batchId: String(r.batch_id),
-    reason: r.reason,
-    severity: r.severity === 'critical' ? 'Critical' as const : 'Warning' as const,
-    alertDate: r.alert_date
-  }));
+  const recallsFormatted = recalls.map(function(r: any) {
+    return {
+      id: String(r.id),
+      batchId: String(r.batch_id),
+      reason: r.reason,
+      severity: r.severity === 'critical' ? 'Critical' as const : 'Warning' as const,
+      alertDate: r.alert_date
+    };
+  });
 
-  const handleShare = async () => {
-    const shareText = 'MedSathi Scan: ' + medicine.brand_name + ' (' + medicine.generic_name + ') - Trust Score: ' + (trustScore?.score || 0) + '/100';
+  const handleShare = async function() {
+    var shareText = 'MedSathi Scan: ' + medicine.brand_name + ' (' + medicine.generic_name + ') - Trust Score: ' + (trustScore?.score || 0) + '/100';
     try {
       if (navigator.share) {
         await navigator.share({ title: 'MedSathi Scan Result', text: shareText, url: window.location.href });
@@ -338,6 +709,9 @@ export const Results: React.FC = () => {
           {trustScoreResult.status === 'flagged' && <XCircle size={20} />}
           <span className="text-sm font-medium opacity-90">
             {trustScoreResult.status === 'genuine' ? 'Verified Medicine' : trustScoreResult.status === 'inconclusive' ? 'Needs Verification' : 'Flagged'}
+          </span>
+          <span className="bg-white/20 text-[10px] px-2 py-0.5 rounded-full font-bold ml-auto">
+            DB Verified
           </span>
         </div>
         <h1 className="text-2xl font-bold">{medicine?.brand_name}</h1>
@@ -405,9 +779,9 @@ export const Results: React.FC = () => {
         )}
 
         {/* Recall Alerts */}
-        {recallsFormatted.map(recall => (
-          <RecallBanner key={recall.id} recall={recall} />
-        ))}
+        {recallsFormatted.map(function(recall) {
+          return <RecallBanner key={recall.id} recall={recall} />;
+        })}
 
         {/* ===== CDSCO VERIFICATION RATING ===== */}
         <div className={'rounded-xl border-2 p-4 ' + (cdscRating.color === 'green' ? 'bg-green-50 border-green-300' : cdscRating.color === 'teal' ? 'bg-teal-50 border-teal-300' : cdscRating.color === 'amber' ? 'bg-amber-50 border-amber-300' : 'bg-red-50 border-red-300')}>
@@ -426,27 +800,47 @@ export const Results: React.FC = () => {
             {cdscRating.label} ({cdscRating.score}/100)
           </p>
           <div className="space-y-1.5">
-            {cdscRating.details.map((detail, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs">
-                {detail.includes('not found') || detail.includes('EXPIRED') || detail.includes('exceeds') || detail.includes('recall') ? (
-                  <XCircle size={13} className="text-red-500 shrink-0 mt-0.5" />
-                ) : detail.includes('status:') ? (
-                  <AlertTriangle size={13} className="text-amber-500 shrink-0 mt-0.5" />
-                ) : (
-                  <CheckCircle size={13} className="text-green-500 shrink-0 mt-0.5" />
-                )}
-                <span className="text-gray-700">{detail}</span>
-              </div>
-            ))}
+            {cdscRating.details.map(function(detail, i) {
+              return (
+                <div key={i} className="flex items-start gap-2 text-xs">
+                  {detail.includes('not found') || detail.includes('EXPIRED') || detail.includes('exceeds') || detail.includes('recall') ? (
+                    <XCircle size={13} className="text-red-500 shrink-0 mt-0.5" />
+                  ) : detail.includes('status:') ? (
+                    <AlertTriangle size={13} className="text-amber-500 shrink-0 mt-0.5" />
+                  ) : (
+                    <CheckCircle size={13} className="text-green-500 shrink-0 mt-0.5" />
+                  )}
+                  <span className="text-gray-700">{detail}</span>
+                </div>
+              );
+            })}
           </div>
           <button
-            onClick={() => window.open('https://cdscoonline.gov.in/CDSCO/Drugs', '_blank')}
+            onClick={function() { window.open('https://cdscoonline.gov.in/CDSCO/Drugs', '_blank'); }}
             className="mt-3 w-full bg-white/60 py-2 rounded-lg text-xs font-bold text-gray-700 flex items-center justify-center gap-1.5 border border-gray-200"
           >
             <ExternalLink size={12} />
             Cross-verify on CDSCO Official Website
           </button>
         </div>
+
+        {/* AI Verification (if also available for DB-verified medicine) */}
+        {aiV && (
+          <div className="bg-blue-50 rounded-xl border border-blue-200 p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Bot size={16} className="text-blue-600" />
+              <h3 className="font-bold text-blue-800 text-sm">AI Cross-Verification</h3>
+              <span className="bg-blue-200 text-blue-800 text-[10px] px-2 py-0.5 rounded-full font-bold ml-auto">
+                {aiV.genuineness_score}/100
+              </span>
+            </div>
+            <div className="space-y-1">
+              {aiV.verification_notes.map(function(note, i) {
+                return <p key={i} className="text-xs text-blue-700">{'• ' + note}</p>;
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Trust Score */}
         {trustScore && <TrustBadge result={trustScoreResult} />}
@@ -463,7 +857,7 @@ export const Results: React.FC = () => {
               <CheckCircle size={18} className="text-green-600 shrink-0" />
               <div>
                 <p className="text-sm font-medium text-green-800">Batch Number Verified</p>
-                <p className="text-[11px] text-green-600">Batch {batch?.batch_number} found in database</p>
+                <p className="text-[11px] text-green-600">{'Batch ' + (batch?.batch_number || '') + ' found in database'}</p>
               </div>
             </div>
 
@@ -587,20 +981,22 @@ export const Results: React.FC = () => {
               { label: 'Expiry Date', value: expiryDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }), highlight: isExpired ? 'red' : expiresSoon ? 'amber' : '' },
               { label: 'MRP', value: '\u20B9' + (medicine?.mrp || 0).toFixed(2) },
               { label: 'NPPA Ceiling Price', value: medicine?.nppa_ceiling_price ? '\u20B9' + medicine.nppa_ceiling_price.toFixed(2) : 'Not set' }
-            ].map((item, i) => (
-              <div key={i} className="flex justify-between items-center border-b border-gray-50 pb-2">
-                <span className="text-gray-500 text-sm">{item.label}</span>
-                <span className={
-                  'text-right text-sm ' +
-                  (item.bold ? 'font-bold text-gray-900 ' : 'font-medium text-gray-800 ') +
-                  (item.mono ? 'font-mono ' : '') +
-                  (item.highlight === 'red' ? 'text-red-600 font-bold ' : '') +
-                  (item.highlight === 'amber' ? 'text-amber-600 font-bold ' : '')
-                }>
-                  {item.value || 'N/A'}
-                </span>
-              </div>
-            ))}
+            ].map(function(item, i) {
+              return (
+                <div key={i} className="flex justify-between items-center border-b border-gray-50 pb-2">
+                  <span className="text-gray-500 text-sm">{item.label}</span>
+                  <span className={
+                    'text-right text-sm ' +
+                    (item.bold ? 'font-bold text-gray-900 ' : 'font-medium text-gray-800 ') +
+                    (item.mono ? 'font-mono ' : '') +
+                    (item.highlight === 'red' ? 'text-red-600 font-bold ' : '') +
+                    (item.highlight === 'amber' ? 'text-amber-600 font-bold ' : '')
+                  }>
+                    {item.value || 'N/A'}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -624,9 +1020,9 @@ export const Results: React.FC = () => {
               </p>
             </div>
 
-            {alternativesFormatted.map((alt: any) => {
-              const savings = (medicine?.mrp || 0) - alt.mrp;
-              const savingsPercent = medicine?.mrp ? Math.round((savings / medicine.mrp) * 100) : 0;
+            {alternativesFormatted.map(function(alt: any) {
+              var savings = (medicine?.mrp || 0) - alt.mrp;
+              var savingsPercent = medicine?.mrp ? Math.round((savings / medicine.mrp) * 100) : 0;
 
               return (
                 <div key={alt.id} className="bg-white rounded-xl p-4 mb-3 border border-teal-100">
@@ -658,7 +1054,7 @@ export const Results: React.FC = () => {
                           {'Save \u20B9' + savings.toFixed(2) + ' (' + savingsPercent + '% cheaper!)'}
                         </span>
                       </div>
-                      <p className="text-[10px] text-green-600 mt-1">Same {alt.genericName} {alt.strength} — same therapeutic effect</p>
+                      <p className="text-[10px] text-green-600 mt-1">{'Same ' + alt.genericName + ' ' + alt.strength + ' \u2014 same therapeutic effect'}</p>
                     </div>
                   )}
                 </div>
@@ -670,13 +1066,51 @@ export const Results: React.FC = () => {
                 {'\uD83C\uDFE5'} Available at 10,000+ Jan Aushadhi Kendras across India
               </p>
               <button
-                onClick={() => window.open('https://janaushadhi.gov.in/', '_blank')}
+                onClick={function() { window.open('https://janaushadhi.gov.in/', '_blank'); }}
                 className="mt-2 w-full bg-teal-600 text-white py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5"
               >
                 <ExternalLink size={12} />
                 Find Nearest Jan Aushadhi Kendra
               </button>
             </div>
+          </div>
+        ) : aiV && aiV.jan_aushadhi_alternative ? (
+          /* If no DB alternatives but AI suggests one */
+          <div className="bg-teal-50 rounded-xl border-2 border-teal-200 p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="bg-teal-600 text-white p-1.5 rounded-lg">
+                <Star size={16} />
+              </div>
+              <div>
+                <h3 className="font-bold text-teal-800 text-sm">{'\uD83D\uDC8A'} Jan Aushadhi Alternative (AI Recommended)</h3>
+                <p className="text-[11px] text-teal-600">Government-approved generic — same salt, same quality</p>
+              </div>
+            </div>
+            <div className="bg-white rounded-xl p-4 mt-2 border border-teal-100">
+              <div className="flex gap-3 mb-3">
+                <div className="flex-1 text-center p-2.5 bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Branded</p>
+                  <p className="text-sm font-bold text-gray-900">{medicine?.brand_name}</p>
+                  <p className="text-lg font-bold text-gray-700 mt-1">{'\u20B9'}{(medicine?.mrp || 0).toFixed(2)}</p>
+                </div>
+                <div className="flex items-center">
+                  <ArrowRight size={20} className="text-teal-500" />
+                </div>
+                <div className="flex-1 text-center p-2.5 bg-teal-50 rounded-lg border-2 border-teal-300">
+                  <p className="text-[10px] text-teal-600 font-bold uppercase mb-1">{'\uD83C\uDFE5'} Jan Aushadhi</p>
+                  <p className="text-sm font-bold text-teal-800">{aiV.jan_aushadhi_alternative.name}</p>
+                  <p className="text-xs text-teal-600 mt-0.5">{aiV.jan_aushadhi_alternative.manufacturer}</p>
+                  <p className="text-lg font-bold text-teal-700 mt-1">{'\u20B9'}{aiV.jan_aushadhi_alternative.approximate_price}</p>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={function() { window.open('https://janaushadhi.gov.in/', '_blank'); }}
+              className="mt-3 w-full bg-teal-600 text-white py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5"
+            >
+              <ExternalLink size={12} />
+              Find Nearest Jan Aushadhi Kendra
+            </button>
           </div>
         ) : (
           <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 text-center">
@@ -692,7 +1126,7 @@ export const Results: React.FC = () => {
         {/* ===== ACTION BUTTONS ===== */}
         <div className="space-y-3">
           <button
-            onClick={() => navigate('/scan')}
+            onClick={function() { navigate('/scan'); }}
             className="w-full bg-teal-600 text-white py-4 rounded-xl font-bold text-[15px] flex items-center justify-center gap-2 active:bg-teal-700 transition-colors"
           >
             <Camera size={20} />
@@ -700,7 +1134,7 @@ export const Results: React.FC = () => {
           </button>
 
           <button
-            onClick={() => navigate('/chat')}
+            onClick={function() { navigate('/chat'); }}
             className="w-full bg-white border-2 border-teal-500 text-teal-700 py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:bg-teal-50 transition-colors"
           >
             <MessageSquare size={18} />
@@ -716,7 +1150,7 @@ export const Results: React.FC = () => {
               Share Result
             </button>
             <button
-              onClick={() => window.open('https://cdscoonline.gov.in/CDSCO/Drugs', '_blank')}
+              onClick={function() { window.open('https://cdscoonline.gov.in/CDSCO/Drugs', '_blank'); }}
               className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 active:bg-gray-200"
             >
               <Shield size={16} />
